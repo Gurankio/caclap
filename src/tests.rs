@@ -1,9 +1,8 @@
 #![allow(dead_code)]
 
-use crate::Validator;
+use crate::{FromArgs, HasSubcommands, Order, Validated, Validator};
 use crate::literal::FromStr;
-use crate::meta::{Flag, IsMeta, Meta, Subcommand, Value};
-use crate::meta::MetaValidate;
+use crate::meta::{Flag, IsMeta, Meta, Subcommand, Value, MetaValidate};
 use crate::repeat::{Optional, Repeat, Required};
 
 struct Simple {
@@ -41,6 +40,40 @@ impl IsMeta for Simple {
         ],
         validate: Simple::validate,
     };
+}
+
+impl FromArgs for Simple {
+    fn from_args(validated: &mut Validated, order: Order) -> Self {
+        let (a, b, c);
+        match order {
+            Order::Pre => {
+                a = u32::from_args(validated, Order::Pre);
+                b = f64::from_args(validated, Order::Pre);
+                c = None;
+            }
+            Order::Post => {
+                c = None;
+                a = u32::from_args(validated, Order::Pre);
+                b = f64::from_args(validated, Order::Pre);
+                // subcommands?
+            }
+        }
+        Self { a, b, c }
+    }
+}
+
+enum SimpleSubcommands {
+    X(usize)
+}
+
+impl FromArgs for SimpleSubcommands {
+    fn from_args(validated: &mut Validated, order: Order) -> Self {
+        todo!()
+    }
+}
+
+impl HasSubcommands for Simple {
+    type Subcommands = SimpleSubcommands;
 }
 
 struct Nested {
@@ -98,6 +131,6 @@ fn nested() {
         for item in &err {
             println!("{item:#?}");
         }
-        panic!("{:?}", context.validated().args)
+        panic!()
     }
 }

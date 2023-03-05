@@ -123,8 +123,8 @@ impl<M: IsMeta> MetaValidate for M {
                 }
                 flags(context, meta.flags)
                     .raise(&mut output, None)?;
-                subcommands(context, meta.subcommands, last)
-                    .raise(&mut output, None)?;
+                // subcommands(context, meta.subcommands, last)
+                //     .raise(&mut output, None)?;
             }
             Order::Post => {
                 flags(context, meta.flags)

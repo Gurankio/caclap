@@ -1,6 +1,9 @@
 // #![no_std]
+#![feature(core_intrinsics)]
 
 extern crate alloc;
+
+mod new;
 
 mod literal;
 mod repeat;
@@ -10,10 +13,12 @@ mod meta;
 #[cfg(test)]
 mod tests;
 
+use std::marker::PhantomData;
+use std::ops::Sub;
 use literal::Literal;
-use error::{Trace, Unknown};
+use error::{Trace, Unknown, Raise};
 use meta::{IsMeta, Meta};
-use crate::error::Raise;
+use crate::meta::Subcommand;
 
 trait Validate {
     fn validate(&self, context: &mut Context, order: Order, last: bool) -> Result<Option<Unknown>, Trace>;
@@ -36,7 +41,7 @@ impl Validate for Validator {
 
 #[derive(Debug)]
 pub struct Context<Root = ()> {
-    root: core::marker::PhantomData<Root>,
+    root: PhantomData<Root>,
     args: &'static [Argument],
     current: usize,
 }
@@ -63,48 +68,64 @@ pub enum Order {
 
 pub type Argument = &'static str;
 
-fn validate<Root: IsMeta>(args: &'static [Argument]) -> (Context<Root>, Option<Trace>) {
-    let mut context = Context { root: core::marker::PhantomData, args, current: 0 };
+pub fn validate<Root: IsMeta>(args: &'static [Argument]) -> (Context<Root>, Option<Trace>) {
+    let mut context = Context { root: PhantomData, args, current: 0 };
     let result = Root::META.validate(&mut context, Order::Post, true)
         .raise(&mut None, None).err();
     // TODO: fix current on error?
-    let validated = Context { root: core::marker::PhantomData::<Root>, args, current: context.current };
+    let validated = Context { root: PhantomData::<Root>, args, current: context.current };
     (validated, result)
 }
 
-struct Validated<Root> {
-    root: core::marker::PhantomData<Root>,
+pub struct Validated {
+    // root: core::marker::PhantomData<Root>,
     args: &'static [Argument],
 }
 
 impl<Root: IsMeta> Context<Root> {
-    fn validated(&self) -> Validated<Root> {
-        Validated {
-            args: &self.args[0..self.current],
-            root: core::marker::PhantomData,
+    pub fn partial<T>(&self) -> &'static [Argument] {
+        &self.args[0..self.current]
+    }
+
+    pub fn validated<T>(&self) -> Option<Validated> {
+        if self.args.len() == self.current {
+            Some(Validated {
+                args: &self.args[0..self.current],
+                // root: core::marker::PhantomData,
+            })
+        } else {
+            None
         }
     }
 }
 
-struct SubcommandIter<'v, Root: FromArgs> {
-    args: &'v Validated<Root>,
-    current: usize,
+pub trait FromArgs {
+    fn from_args(validated: &mut Validated, order: Order) -> Self;
 }
 
-impl<'v, Root: FromArgs> Iterator for SubcommandIter<'v, Root> {
-    type Item = Root::Subcommands;
+pub struct SubcommandIter<'v, Subcommands: FromArgs> {
+    subcommands: PhantomData<Subcommands>,
+    validated: &'v mut Validated,
+    valid: &'static [Subcommand],
+}
+
+impl<'v, Subcommands: FromArgs> Iterator for SubcommandIter<'v, Subcommands> {
+    type Item = Subcommands;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // if self.valid.iter().map(|s| s.aliases).flatten().find(self.validated.peek()).is_some() {
+        //     return Some(Subcommands::from_args(self.validated, Order::Post));
+        // } else {
+        //     None
+        // }
         todo!()
     }
 }
 
-trait FromArgs {
+pub trait HasSubcommands: IsMeta {
     type Subcommands: FromArgs;
-}
 
-impl<Root: FromArgs> Validated<Root> {
-    fn parse(&self) -> (Root, SubcommandIter<Root::Subcommands>) {
-        todo!()
+    fn iter_subcommands(validated: &mut Validated) -> SubcommandIter<Self::Subcommands> {
+        SubcommandIter { subcommands: PhantomData, validated, valid: Self::META.subcommands }
     }
 }

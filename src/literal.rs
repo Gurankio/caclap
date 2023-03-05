@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Display, Formatter};
 use alloc::string::{String, ToString};
-use crate::{Context, Order, Validate};
+use crate::{Context, FromArgs, HasSubcommands, Order, SubcommandIter, Validate, Validated};
 use crate::error::{Error, Trace, Unknown};
 
 #[derive(Debug)]
@@ -76,3 +76,15 @@ macro_rules! literal {
 
 literal!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64, char);
 literal!(String);
+
+impl FromArgs for u32 {
+    fn from_args(validated: &mut Validated, order: Order) -> Self {
+        todo!()
+    }
+}
+
+impl FromArgs for f64 {
+    fn from_args(validated: &mut Validated, order: Order) -> Self {
+        todo!()
+    }
+}
